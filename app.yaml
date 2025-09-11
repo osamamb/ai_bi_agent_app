@@ -1,0 +1,36 @@
+name: ai-bi-telstra-agent
+description: "AI BI Telstra Agent - A Databricks app with LangChain agents for natural language querying and interactive business intelligence analytics"
+
+command: [
+  "streamlit", 
+  "run",
+  "app.py"
+]
+
+env:
+  - name: "DATABRICKS_WAREHOUSE_ID"
+    valueFrom: "sql_warehouse"
+  - name: "DATABRICKS_SERVING_ENDPOINT_NAME"
+    valueFrom: "serving_endpoint"
+  - name: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+    value: "false"
+  - name: "DATABRICKS_HOST"
+    value: "https://adb-2513571461550609.9.azuredatabricks.net/"  # Replace with your actual Databricks workspace URL
+  - name: "DATABRICKS_TOKEN"
+    value: "YOUR_DATABRICKS_TOKEN_HERE"  # Set this to your personal access token for Genie API
+  - name: "GENIE_SPACE_ID"
+    value: "01f06796f0621167a18adb8054812a30"  # Replace with your actual Genie space ID for business intelligence dataset
+  - name: "DATABRICKS_DASHBOARD_URL"
+    value: "https://adb-2513571461550609.9.azuredatabricks.net/embed/dashboardsv3/01f067a1093f1f948acb1312cbc3a27b?o=2513571461550609"  # Replace with your actual dashboard URL
+  - name: "ENABLE_RESPONSE_ENHANCEMENT"
+    value: "true"  # Set to false to disable LLM response enhancement
+  - name: "LANGCHAIN_TRACING_V2"
+    value: "false"  # Set to true to enable LangChain tracing
+  - name: "LANGCHAIN_API_KEY"
+    value: ""  # Optional: LangSmith API key for tracing
+
+resources:
+  - name: "sql_warehouse"
+    description: "SQL warehouse for Genie operations and business intelligence queries"
+  - name: "serving_endpoint"
+    description: "Model serving endpoint for AI-powered response enhancement"
