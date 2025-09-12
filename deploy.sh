@@ -57,7 +57,15 @@ fi
 
 # Push to GitHub
 echo -e "${YELLOW}🌐 Pushing to GitHub repository...${NC}"
-if git push origin "$CURRENT_BRANCH"; then
+
+# Check if GITHUB_TOKEN is set, otherwise use regular git push
+if [[ -n "$GITHUB_TOKEN" ]]; then
+    REPO_URL="https://${GITHUB_TOKEN}@github.com/osamamb/ai_bi_agent_app.git"
+else
+    REPO_URL="origin"
+fi
+
+if git push "$REPO_URL" "$CURRENT_BRANCH"; then
     echo -e "${GREEN}✅ Successfully deployed to GitHub!${NC}"
     echo -e "${GREEN}🔗 Repository: https://github.com/osamamb/ai_bi_agent_app${NC}"
     
