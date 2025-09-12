@@ -33,6 +33,11 @@ install: ## 📦 Install Python dependencies
 	@echo "📦 Installing dependencies..."
 	@pip install -r requirements.txt
 
+install-dev: ## 🔧 Install development dependencies
+	@echo "🔧 Installing development dependencies..."
+	@pip install -r requirements.txt
+	@pip install black isort flake8 pytest
+
 test: ## 🧪 Run tests
 	@echo "🧪 Running tests..."
 	@python -m pytest test_structure.py -v || echo "⚠️ Tests not found"
