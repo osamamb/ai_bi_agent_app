@@ -24,6 +24,22 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
     exit 1
 fi
 
+# Run validation if script exists
+if [[ -f "validate.sh" ]]; then
+    echo -e "${BLUE}🔍 Running pre-deployment validation...${NC}"
+    if ./validate.sh; then
+        echo -e "${GREEN}✅ Validation passed${NC}"
+    else
+        echo -e "${RED}❌ Validation failed${NC}"
+        read -p "Do you want to continue anyway? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${RED}❌ Deployment cancelled${NC}"
+            exit 1
+        fi
+    fi
+fi
+
 # Check for uncommitted changes
 if [[ -n $(git status --porcelain) ]]; then
     echo -e "${YELLOW}📝 Found uncommitted changes${NC}"

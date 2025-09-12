@@ -38,6 +38,10 @@ install-dev: ## 🔧 Install development dependencies
 	@pip install -r requirements.txt
 	@pip install black isort flake8 pytest
 
+validate: ## 🔍 Validate code before deployment
+	@echo "🔍 Running validation..."
+	@./validate.sh
+
 test: ## 🧪 Run tests
 	@echo "🧪 Running tests..."
 	@python -m pytest test_structure.py -v || echo "⚠️ Tests not found"
