@@ -110,8 +110,20 @@ ENV/
 env.bak/
 venv.bak/
 
-# Deployment configuration
+# Deployment configuration (local only)
 deploy-quick.sh
+setup-deployment.sh
+.env
+
+# Documentation (temporary/local)
+DEPLOYMENT.md
+GITHUB_ACTIONS_GUIDE.md
+SYNTAX_FIXES.md
+*_FIXES.md
+*_GUIDE.md
+
+# Validation scripts (local only)
+validate.sh
 
 # Spyder project settings
 .spyderproject

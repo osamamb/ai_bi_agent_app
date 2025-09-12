@@ -33,14 +33,16 @@ install: ## 📦 Install Python dependencies
 	@echo "📦 Installing dependencies..."
 	@pip install -r requirements.txt
 
-install-dev: ## 🔧 Install development dependencies
-	@echo "🔧 Installing development dependencies..."
+install-dev: ## 🔧 Install all dependencies including development tools
+	@echo "🔧 Installing all dependencies..."
 	@pip install -r requirements.txt
-	@pip install black isort flake8 pytest
 
 validate: ## 🔍 Validate code before deployment
-	@echo "🔍 Running validation..."
-	@./validate.sh
+	@echo "🔍 Validating Python syntax..."
+	@python3 -m py_compile app.py && echo "✅ app.py syntax OK" || (echo "❌ app.py has syntax errors" && exit 1)
+	@python3 -m py_compile langchain_agents.py && echo "✅ langchain_agents.py syntax OK" || (echo "❌ langchain_agents.py has syntax errors" && exit 1)
+	@python3 -m py_compile langchain_tools.py && echo "✅ langchain_tools.py syntax OK" || (echo "❌ langchain_tools.py has syntax errors" && exit 1)
+	@echo "🎉 Validation completed successfully!"
 
 test: ## 🧪 Run tests
 	@echo "🧪 Running tests..."
