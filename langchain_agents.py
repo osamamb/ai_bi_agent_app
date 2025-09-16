@@ -7,13 +7,41 @@ from typing import List, Dict, Any, Optional
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.agents.agent_types import AgentType
 from langchain_core.prompts import PromptTemplate
-from langchain_core.tools import Tool
+from langchain_core.tools import Tool, BaseTool
 from langchain_community.llms.databricks import Databricks
 from langchain_community.chat_models import ChatDatabricks
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.language_models.llms import LLM
 from langchain_tools import GenieQueryTool, ResponseEnhancementTool, SQLQueryTool
 import pandas as pd
+
+
+class ForceCompletionTool(BaseTool):
+    """Wrapper tool that forces agent completion after first use."""
+    
+    name: str = "force_completion"
+    description: str = "Internal tool to force agent completion"
+    wrapped_tool: Any = None
+    used: bool = False
+    
+    def __init__(self, wrapped_tool, **kwargs):
+        super().__init__(**kwargs)
+        object.__setattr__(self, 'wrapped_tool', wrapped_tool)
+        object.__setattr__(self, 'used', False)
+    
+    def _run(self, *args, **kwargs) -> str:
+        """Run the wrapped tool and mark as used."""
+        if self.used:
+            return "Tool already used. Please provide Final Answer."
+        
+        object.__setattr__(self, 'used', True)
+        result = self.wrapped_tool._run(*args, **kwargs)
+        
+        # Force a final answer by appending instruction
+        if "Failed" in result or "Error" in result or "Configuration" in result:
+            return f"{result}\n\nIMPORTANT: This tool has failed. You must now provide a Final Answer explaining the issue to the user."
+        else:
+            return f"{result}\n\nIMPORTANT: This tool has completed successfully. You must now provide a Final Answer with these results."
 
 
 class MockLLM(LLM):
@@ -112,38 +140,40 @@ class BusinessIntelligenceAgent:
     
     def _create_agent(self) -> AgentExecutor:
         """Create the LangChain agent with tools."""
+        # Wrap the genie tool with force completion
+        force_genie_tool = ForceCompletionTool(self.genie_tool)
+        force_genie_tool.name = "genie_query"
+        force_genie_tool.description = self.genie_tool.description
+        
         tools = [
             Tool(
                 name="genie_query",
                 description=self.genie_tool.description,
-                func=self.genie_tool._run
-            ),
-            Tool(
-                name="sql_query",
-                description=self.sql_tool.description,
-                func=self.sql_tool._run
+                func=force_genie_tool._run
             )
         ]
         
-        if self.enhancement_tool:
-            tools.append(
-                Tool(
-                    name="enhance_response",
-                    description=self.enhancement_tool.description,
-                    func=self.enhancement_tool._run
-                )
-            )
+        # Don't add other tools to force single-tool usage
+        # if self.enhancement_tool:
+        #     tools.append(
+        #         Tool(
+        #             name="enhance_response",
+        #             description=self.enhancement_tool.description,
+        #             func=self.enhancement_tool._run
+        #         )
+        #     )
         
         # Create agent prompt
         prompt = PromptTemplate.from_template("""
-You are a Business Intelligence Agent. Answer business questions using the available tools.
+You are a Business Intelligence Agent. You MUST follow this exact process:
 
-IMPORTANT: Be direct and efficient. Use only ONE tool per question unless absolutely necessary.
+MANDATORY PROCESS:
+1. Use the genie_query tool ONCE with the user's question
+2. After the tool returns ANY result, immediately provide a Final Answer
+3. DO NOT use any tool more than once
+4. DO NOT retry failed tools
 
-Process:
-1. For business questions, use genie_query tool with the user's exact question
-2. Return the result immediately - do not use additional tools unless the first tool fails
-3. Only use enhance_response if specifically requested or if the response needs improvement
+IMPORTANT: After using genie_query, you MUST provide a Final Answer. No exceptions.
 
 Available tools: {tool_names}
 Tool descriptions:
@@ -166,8 +196,9 @@ User Question: {input}
             tools=tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=3,  # Reduced to 3 for faster completion
-            max_execution_time=30  # Reduced to 30 seconds
+            max_iterations=2,  # Only 2 iterations: 1 for tool call, 1 for final answer
+            max_execution_time=20,  # 20 seconds max
+            return_intermediate_steps=False  # Don't return intermediate steps
         )
     
     def query(self, question: str) -> Dict[str, Any]:
@@ -189,8 +220,13 @@ User Question: {input}
             sql_query = self.genie_tool.last_sql_query
             conversation_id = self.genie_tool.conversation_id
             
+            # Ensure we have a response
+            response = result.get("output", "")
+            if not response:
+                response = f"I processed your question about '{question}' but encountered technical difficulties. Please check your Databricks configuration."
+            
             return {
-                "response": result.get("output", "No response generated"),
+                "response": response,
                 "dataframe": dataframe,
                 "sql_query": sql_query,
                 "conversation_id": conversation_id,
