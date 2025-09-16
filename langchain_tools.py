@@ -158,7 +158,7 @@ class GenieQueryTool(BaseTool):
         
         return None
     
-    def _wait_for_response(self, conversation_id: str, message_id: str, max_wait: int = 30) -> Optional[str]:
+    def _wait_for_response(self, conversation_id: str, message_id: str, max_wait: int = 60) -> Optional[str]:
         """Wait for Genie response."""
         start_time = time.time()
         

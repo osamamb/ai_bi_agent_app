@@ -211,53 +211,14 @@ User Question: {input}
         Returns:
             Dictionary with response, dataframe, and metadata
         """
-        # PRIMARY APPROACH: Try direct tool execution first (most reliable)
+        # DIRECT TOOL EXECUTION ONLY: Bypass agent framework entirely for reliability
         try:
             direct_result = self._direct_tool_execution(question)
-            # If direct execution succeeds, return it
-            if direct_result["success"]:
-                return direct_result
-        except Exception:
-            # If direct execution fails, continue to agent approach
-            pass
-        
-        # SECONDARY APPROACH: Try agent framework (may hit iteration limits)
-        try:
-            # Execute agent with timeout handling
-            result = self.agent_executor.invoke({"input": question})
-            
-            # Get additional data from tools
-            dataframe = self.genie_tool.result_dataframe
-            sql_query = self.genie_tool.last_sql_query
-            conversation_id = self.genie_tool.conversation_id
-            
-            # Ensure we have a response
-            response = result.get("output", "")
-            if not response:
-                response = f"I processed your question about '{question}' but encountered technical difficulties. Please check your Databricks configuration."
-            
-            return {
-                "response": response,
-                "dataframe": dataframe,
-                "sql_query": sql_query,
-                "conversation_id": conversation_id,
-                "success": True
-            }
-            
+            return direct_result
         except Exception as e:
+            # If direct execution fails, provide detailed error information
             error_msg = str(e)
-
-            # TERTIARY APPROACH: If agent fails, try direct tool execution again
-            if "iteration limit" in error_msg.lower() or "time limit" in error_msg.lower():
-                try:
-                    return self._direct_tool_execution(question)
-                except Exception:
-                    pass
             
-            # FINAL FALLBACK: Provide error message
-            if "parsing" in error_msg.lower():
-                error_msg = "There was an issue understanding the query format. Please try rephrasing your question."
-
             return {
                 "response": f"I encountered an issue processing your query: {error_msg}. Please check your Databricks configuration and try again.",
                 "dataframe": None,
@@ -272,7 +233,7 @@ User Question: {input}
         This completely bypasses the agent and calls tools directly.
         """
         try:
-            # Call genie tool directly
+            # Call genie tool directly with extended timeout for complex queries
             genie_result = self.genie_tool._run(question)
             
             # Get additional data from tools
