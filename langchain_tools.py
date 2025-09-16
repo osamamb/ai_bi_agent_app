@@ -77,10 +77,10 @@ class GenieQueryTool(BaseTool):
                     error_detail = getattr(self, '_last_error', 'Unknown error')
                     return f"Failed to start conversation with Genie. {error_detail}"
                 
-                self._conversation_id = response.get("conversation_id")
+                object.__setattr__(self, '_conversation_id', response.get("conversation_id"))
                 message_id = response.get("message_id")
             else:
-                self._conversation_id = conversation_id
+                object.__setattr__(self, '_conversation_id', conversation_id)
                 message_id = self._create_message(conversation_id, query)
             
             if not message_id:
@@ -179,7 +179,7 @@ class GenieQueryTool(BaseTool):
                         attachments = message_data.get("attachments", [])
                         for attachment in attachments:
                             if attachment.get("type") == "query_result":
-                                self._last_sql_query = attachment.get("query", {}).get("query", "")
+                                object.__setattr__(self, '_last_sql_query', attachment.get("query", {}).get("query", ""))
                                 
                                 # Try to get query results
                                 statement_id = attachment.get("query", {}).get("statement_id")
