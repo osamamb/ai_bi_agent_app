@@ -1,5 +1,5 @@
-name: ai-bi-telstra-agent
-description: "AI BI Telstra Agent - A Databricks app with LangChain agents for natural language querying and interactive business intelligence analytics"
+name: ai-bi-agent
+description: "AI BI Agent - A Databricks app with LangChain agents for natural language querying and interactive business intelligence analytics"
 
 command: [
   "streamlit", 

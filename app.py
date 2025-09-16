@@ -1,5 +1,5 @@
 """
-AI BI Telstra Agent - LangChain Version
+AI BI Agent - LangChain Version
 A Databricks Streamlit app with LangChain agents for:
 1. Genie Chatbot - Natural language queries using LangChain agents
 2. Analytics Dashboard - Visual insights from campaigns, orders, and customer data
@@ -30,11 +30,11 @@ except ImportError:
     DATABRICKS_AVAILABLE = False
     sql = None
 
-# Enterprise styling configuration - Telstra-inspired
+# Enterprise styling configuration
 ENTERPRISE_COLORS = {
-    'primary': '#132257',      # Telstra Deep Blue
-    'secondary': '#00A9CE',    # Telstra Cyan
-    'accent': '#E20074',       # Telstra Magenta
+    'primary': '#132257',      # Deep Blue
+    'secondary': '#00A9CE',    # Cyan
+    'accent': '#E20074',       # Magenta
     'success': '#00B04F',      # Professional Green
     'warning': '#FF6900',      # Professional Orange
     'error': '#D32F2F',        # Professional Red
@@ -45,7 +45,7 @@ ENTERPRISE_COLORS = {
 }
 
 ENTERPRISE_STYLE = {
-    'font_family': 'Telstra Sans, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+    'font_family': '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
     'title_size': 24,
     'subtitle_size': 18,
     'grid_color': '#E0E0E0',
@@ -56,9 +56,9 @@ ENTERPRISE_STYLE = {
 }
 
 def apply_enterprise_styling(fig, title, chart_type):
-    """Apply Telstra-inspired enterprise styling to Plotly figures"""
+    """Apply enterprise styling to Plotly figures"""
     
-    # Color palette based on chart type - Telstra-inspired
+    # Color palette based on chart type
     if chart_type in ['bar', 'column']:
         colors = [ENTERPRISE_COLORS['primary']]
     elif chart_type == 'line':
@@ -130,7 +130,7 @@ def apply_enterprise_styling(fig, title, chart_type):
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="AI BI Telstra Agent",
+    page_title="AI BI Agent",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -208,7 +208,7 @@ def create_mock_business_data():
         'Customer_Age_Band': np.random.choice(age_bands, n_records),
         'Customer_Tenure_Band': np.random.choice(tenure_bands, n_records),
         'Gender': np.random.choice(['M', 'F'], n_records),
-        'Telstra_Plus_Status': np.random.choice(['Active', 'Inactive'], n_records, p=[0.7, 0.3])
+        'Loyalty_Status': np.random.choice(['Active', 'Inactive'], n_records, p=[0.7, 0.3])
     }
     
     return pd.DataFrame(data)
@@ -236,7 +236,7 @@ def get_business_data():
             uc.Cstmr_Age_Bnd as Customer_Age_Band,
             uc.Cstmr_Tenure_Bnd as Customer_Tenure_Band,
             uc.Gndr_Cd as Gender,
-            uc.Telstra_Plus_Stts as Telstra_Plus_Status
+            uc.Loyalty_Status as Loyalty_Status
         FROM aiops_app_catalog.c809384.orders o
         LEFT JOIN aiops_app_catalog.c809384.campaigns c ON o.CAC = c.CAC
         LEFT JOIN aiops_app_catalog.c809384.unique_customers uc ON o.CAC = uc.CAC
@@ -693,7 +693,7 @@ def main():
     """, unsafe_allow_html=True)
     
     # Main title
-    st.markdown('<h1 class="main-header">🤖 AI BI Telstra Agent (LangChain)</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🤖 AI BI Agent (LangChain)</h1>', unsafe_allow_html=True)
     
     st.markdown("""
     Explore business intelligence data through interactive analytics and natural language queries powered by **LangChain agents** and Databricks Genie.

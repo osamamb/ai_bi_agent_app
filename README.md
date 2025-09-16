@@ -1,4 +1,4 @@
-# AI BI Telstra Agent - LangChain Version
+# AI BI Agent - LangChain Version
 
 A Databricks Streamlit app that combines interactive business intelligence analytics with natural language querying capabilities using **LangChain agents** and Databricks Genie.
 
@@ -41,7 +41,7 @@ This version reimplements the original Brett AI BI App using **LangChain framewo
 - Interactive visualizations using Plotly
 - Key business metrics and KPIs
 - Multiple chart types with AI-powered selection
-- Enterprise Telstra-inspired styling
+- Enterprise-grade styling
 
 ### 📈 Databricks Dashboard Tab
 - Embedded Databricks dashboard
@@ -132,13 +132,13 @@ pip install databricks-cli
 databricks configure --token
 
 # Deploy the app
-databricks apps create --source-dir . --app-name ai-bi-telstra-agent
+databricks apps create --source-dir . --app-name ai-bi-agent
 ```
 
 ## File Structure
 
 ```
-ai_bi_telstra_agent/
+ai_bi_agent/
 ├── app.py                 # Main Streamlit application with LangChain integration
 ├── langchain_agents.py    # LangChain agents (BusinessIntelligenceAgent, VisualizationAgent)
 ├── langchain_tools.py     # LangChain tools (GenieQueryTool, ResponseEnhancementTool, SQLQueryTool)
