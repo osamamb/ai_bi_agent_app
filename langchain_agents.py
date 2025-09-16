@@ -196,8 +196,8 @@ User Question: {input}
             tools=tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=2,  # Only 2 iterations: 1 for tool call, 1 for final answer
-            max_execution_time=20,  # 20 seconds max
+            max_iterations=1,  # Only 1 iteration - force immediate completion
+            max_execution_time=10,  # 10 seconds max - very aggressive
             return_intermediate_steps=False  # Don't return intermediate steps
         )
     
@@ -211,6 +211,17 @@ User Question: {input}
         Returns:
             Dictionary with response, dataframe, and metadata
         """
+        # PRIMARY APPROACH: Try direct tool execution first (most reliable)
+        try:
+            direct_result = self._direct_tool_execution(question)
+            # If direct execution succeeds, return it
+            if direct_result["success"]:
+                return direct_result
+        except Exception:
+            # If direct execution fails, continue to agent approach
+            pass
+        
+        # SECONDARY APPROACH: Try agent framework (may hit iteration limits)
         try:
             # Execute agent with timeout handling
             result = self.agent_executor.invoke({"input": question})
@@ -235,17 +246,57 @@ User Question: {input}
             
         except Exception as e:
             error_msg = str(e)
+
+            # TERTIARY APPROACH: If agent fails, try direct tool execution again
+            if "iteration limit" in error_msg.lower() or "time limit" in error_msg.lower():
+                try:
+                    return self._direct_tool_execution(question)
+                except Exception:
+                    pass
             
-            # Provide more specific error messages
-            if "iteration limit" in error_msg.lower():
-                error_msg = "The agent took too many steps to process your query. Please try rephrasing your question more specifically."
-            elif "time limit" in error_msg.lower():
-                error_msg = "The query timed out. Please try a simpler question or check your connection."
-            elif "parsing" in error_msg.lower():
+            # FINAL FALLBACK: Provide error message
+            if "parsing" in error_msg.lower():
                 error_msg = "There was an issue understanding the query format. Please try rephrasing your question."
+
+            return {
+                "response": f"I encountered an issue processing your query: {error_msg}. Please check your Databricks configuration and try again.",
+                "dataframe": None,
+                "sql_query": None,
+                "conversation_id": None,
+                "success": False
+            }
+    
+    def _direct_tool_execution(self, question: str) -> Dict[str, Any]:
+        """
+        Direct tool execution bypass when agent framework fails.
+        This completely bypasses the agent and calls tools directly.
+        """
+        try:
+            # Call genie tool directly
+            genie_result = self.genie_tool._run(question)
+            
+            # Get additional data from tools
+            dataframe = self.genie_tool.result_dataframe
+            sql_query = self.genie_tool.last_sql_query
+            conversation_id = self.genie_tool.conversation_id
+            
+            # Format response based on tool result
+            if "Failed" in genie_result or "Error" in genie_result or "Configuration" in genie_result:
+                response = f"I encountered an issue accessing the business intelligence data: {genie_result}"
+            else:
+                response = f"Based on your question '{question}', here are the results from the business intelligence system:\n\n{genie_result}"
             
             return {
-                "response": f"I encountered an issue processing your query: {error_msg}",
+                "response": response,
+                "dataframe": dataframe,
+                "sql_query": sql_query,
+                "conversation_id": conversation_id,
+                "success": True
+            }
+            
+        except Exception as e:
+            return {
+                "response": f"I encountered an issue with direct tool execution: {str(e)}. Please check your Databricks configuration and try again.",
                 "dataframe": None,
                 "sql_query": None,
                 "conversation_id": None,
