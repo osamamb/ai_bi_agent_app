@@ -259,24 +259,13 @@ User Question: {input}
         Direct tool execution bypass when agent framework fails.
         This completely bypasses the agent and calls tools directly.
         """
-        import signal
         import time
         
-        def timeout_handler(signum, frame):
-            raise TimeoutError("Direct execution timeout after 90 seconds")
-        
         try:
-            # Set 90-second timeout for complex queries
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(90)
-            
             start_time = time.time()
             
-            # Call genie tool directly with extended timeout for complex queries
+            # Call genie tool directly (no signal-based timeout for thread compatibility)
             genie_result = self.genie_tool._run(question)
-            
-            # Clear the alarm
-            signal.alarm(0)
             
             execution_time = time.time() - start_time
             
@@ -323,17 +312,7 @@ User Question: {input}
                 "success": True
             }
             
-        except TimeoutError as e:
-            signal.alarm(0)  # Clear alarm
-            return {
-                "response": f"[TIMEOUT] Query execution exceeded 90 seconds. This query may be too complex. Try: 1) A simpler, more specific question, 2) Breaking it into smaller parts, 3) Checking your data sources are accessible.",
-                "dataframe": None,
-                "sql_query": None,
-                "conversation_id": None,
-                "success": False
-            }
         except Exception as e:
-            signal.alarm(0)  # Clear alarm
             return {
                 "response": f"[ERROR] Direct tool execution failed: {str(e)}. Please check your Databricks configuration and try again.",
                 "dataframe": None,
