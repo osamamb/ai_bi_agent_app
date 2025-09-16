@@ -27,7 +27,13 @@ class MockLLM(LLM):
         """Mock LLM call that provides reasonable responses."""
         # Check if this is an agent reasoning prompt
         if "User Question:" in prompt and "genie_query" in prompt:
-            # Extract the user question
+            # Check if we've seen failures in the prompt (indicating retries)
+            if "Failed to start conversation with Genie" in prompt:
+                # After failures, provide a final answer instead of retrying
+                question_part = prompt.split("User Question:")[-1].split("\n")[0].strip()
+                return f"I apologize, but I'm unable to connect to the Genie service at the moment. However, I can provide general guidance about your question: '{question_part}'. Please check your configuration and try again later.\n\nFinal Answer: Unable to process the query due to Genie connection issues. Please verify your DATABRICKS_HOST, DATABRICKS_TOKEN, and GENIE_SPACE_ID configuration."
+            
+            # Extract the user question for first attempt
             if "User Question:" in prompt:
                 question_part = prompt.split("User Question:")[-1].split("\n")[0].strip()
                 return f"I need to use the genie_query tool to answer this business question: {question_part}\n\nAction: genie_query\nAction Input: {question_part}"
@@ -155,8 +161,7 @@ User Question: {input}
             verbose=True,
             handle_parsing_errors=True,
             max_iterations=5,
-            max_execution_time=60,  # 60 seconds timeout
-            early_stopping_method="generate"
+            max_execution_time=60  # 60 seconds timeout
         )
     
     def query(self, question: str) -> Dict[str, Any]:
