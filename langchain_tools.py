@@ -31,19 +31,30 @@ class GenieQueryTool(BaseTool):
     """
     args_schema: Type[BaseModel] = GenieQueryInput
     
-    def __init__(self, host: str, token: str, space_id: str):
-        super().__init__()
-        self.host = host.rstrip('/')
-        self.token = token
-        self.space_id = space_id
-        self.headers = {
+    # Define instance attributes as class attributes to avoid Pydantic field issues
+    host: str = ""
+    token: str = ""
+    space_id: str = ""
+    headers: Dict[str, str] = {}
+    _result_dataframe: Optional[pd.DataFrame] = None
+    _last_sql_query: Optional[str] = None
+    _last_query_results: Optional[str] = None
+    _conversation_id: Optional[str] = None
+    
+    def __init__(self, host: str, token: str, space_id: str, **kwargs):
+        super().__init__(**kwargs)
+        # Use object.__setattr__ to bypass Pydantic's field validation
+        object.__setattr__(self, 'host', host.rstrip('/'))
+        object.__setattr__(self, 'token', token)
+        object.__setattr__(self, 'space_id', space_id)
+        object.__setattr__(self, 'headers', {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
-        }
-        self._result_dataframe = None
-        self._last_sql_query = None
-        self._last_query_results = None
-        self._conversation_id = None
+        })
+        object.__setattr__(self, '_result_dataframe', None)
+        object.__setattr__(self, '_last_sql_query', None)
+        object.__setattr__(self, '_last_query_results', None)
+        object.__setattr__(self, '_conversation_id', None)
     
     def _run(self, query: str, conversation_id: Optional[str] = None) -> str:
         """Execute the Genie query."""
@@ -229,16 +240,24 @@ class ResponseEnhancementTool(BaseTool):
     """
     args_schema: Type[BaseModel] = ResponseEnhancementInput
     
-    def __init__(self, host: str, token: str, endpoint_name: str):
-        super().__init__()
-        self.host = host.rstrip('/')
-        self.token = token
-        self.endpoint_name = endpoint_name
-        self.headers = {
+    # Define instance attributes as class attributes to avoid Pydantic field issues
+    host: str = ""
+    token: str = ""
+    endpoint_name: str = ""
+    headers: Dict[str, str] = {}
+    endpoint_url: str = ""
+    
+    def __init__(self, host: str, token: str, endpoint_name: str, **kwargs):
+        super().__init__(**kwargs)
+        # Use object.__setattr__ to bypass Pydantic's field validation
+        object.__setattr__(self, 'host', host.rstrip('/'))
+        object.__setattr__(self, 'token', token)
+        object.__setattr__(self, 'endpoint_name', endpoint_name)
+        object.__setattr__(self, 'headers', {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
-        }
-        self.endpoint_url = f"{self.host}/serving-endpoints/{self.endpoint_name}/invocations" if self.endpoint_name else ""
+        })
+        object.__setattr__(self, 'endpoint_url', f"{host.rstrip('/')}/serving-endpoints/{endpoint_name}/invocations" if endpoint_name else "")
     
     def _run(self, original_response: str, sql_query: str = "", query_results: str = "") -> str:
         """Enhance the response using LLM."""
@@ -357,11 +376,17 @@ class SQLQueryTool(BaseTool):
     """
     args_schema: Type[BaseModel] = SQLQueryInput
     
-    def __init__(self, host: str, token: str, warehouse_id: str):
-        super().__init__()
-        self.host = host
-        self.token = token
-        self.warehouse_id = warehouse_id
+    # Define instance attributes as class attributes to avoid Pydantic field issues
+    host: str = ""
+    token: str = ""
+    warehouse_id: str = ""
+    
+    def __init__(self, host: str, token: str, warehouse_id: str, **kwargs):
+        super().__init__(**kwargs)
+        # Use object.__setattr__ to bypass Pydantic's field validation
+        object.__setattr__(self, 'host', host)
+        object.__setattr__(self, 'token', token)
+        object.__setattr__(self, 'warehouse_id', warehouse_id)
     
     def _run(self, query: str) -> str:
         """Execute SQL query and return results."""
