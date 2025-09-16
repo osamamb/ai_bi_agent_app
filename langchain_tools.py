@@ -173,20 +173,37 @@ class GenieQueryTool(BaseTool):
                     
                     # Check if we have a response
                     if message_data.get("status") == "COMPLETED":
-                        content = message_data.get("content", "")
+                        # Build the actual response from Genie's analysis
+                        response_parts = []
                         
                         # Store SQL query and results if available
                         attachments = message_data.get("attachments", [])
                         for attachment in attachments:
-                            if attachment.get("type") == "query_result":
-                                object.__setattr__(self, '_last_sql_query', attachment.get("query", {}).get("query", ""))
+                            query_info = attachment.get("query", {})
+                            if query_info:
+                                # Store the SQL query
+                                sql_query = query_info.get("query", "")
+                                if sql_query:
+                                    object.__setattr__(self, '_last_sql_query', sql_query)
+                                
+                                # Get the description of what Genie found
+                                description = query_info.get("description", "")
+                                if description:
+                                    response_parts.append(description)
                                 
                                 # Try to get query results
-                                statement_id = attachment.get("query", {}).get("statement_id")
+                                statement_id = query_info.get("statement_id")
                                 if statement_id:
-                                    self._get_query_results(statement_id)
+                                    query_results = self._get_query_results(statement_id)
+                                    if query_results:
+                                        response_parts.append(f"Query Results:\n{query_results}")
                         
-                        return content
+                        # If we have Genie's analysis, return that; otherwise fall back to content
+                        if response_parts:
+                            return "\n\n".join(response_parts)
+                        else:
+                            # Fallback to content field if no attachments
+                            return message_data.get("content", "No response generated")
                     
                     elif message_data.get("status") == "FAILED":
                         return "Query failed to execute"
@@ -198,7 +215,7 @@ class GenieQueryTool(BaseTool):
         
         return f"Query timed out after {max_wait} seconds. This may indicate: 1) Complex query requiring more time, 2) Network connectivity issues, 3) Genie service overload. Try a simpler question or check your connection."
     
-    def _get_query_results(self, statement_id: str):
+    def _get_query_results(self, statement_id: str) -> Optional[str]:
         """Get query results and store as DataFrame."""
         try:
             endpoints_to_try = [
@@ -218,15 +235,22 @@ class GenieQueryTool(BaseTool):
                             columns = [col["name"] for col in result_data["result"]["schema"]["columns"]]
                             
                             # Create DataFrame
-                            self._result_dataframe = pd.DataFrame(data_array, columns=columns)
-                            self._last_query_results = self._result_dataframe.to_string(max_rows=10)
-                            return
+                            df = pd.DataFrame(data_array, columns=columns)
+                            object.__setattr__(self, '_result_dataframe', df)
+                            
+                            # Format results for display
+                            formatted_results = df.to_string(max_rows=10, index=False)
+                            object.__setattr__(self, '_last_query_results', formatted_results)
+                            
+                            return formatted_results
                             
                 except Exception:
                     continue
                     
         except Exception:
             pass
+        
+        return None
     
     def _mock_response(self, query: str) -> str:
         """Generate mock response for local testing."""
