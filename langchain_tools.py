@@ -7,9 +7,9 @@ import json
 import time
 import requests
 import pandas as pd
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Type
 from langchain.tools import BaseTool
-from langchain_core.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 from databricks import sql
 import streamlit as st
 
@@ -23,13 +23,13 @@ class GenieQueryInput(BaseModel):
 class GenieQueryTool(BaseTool):
     """Tool for querying Databricks Genie API."""
     
-    name = "genie_query"
-    description = """
+    name: str = "genie_query"
+    description: str = """
     Query Databricks Genie with natural language questions about business intelligence data.
     Use this tool to ask questions about sales, customers, campaigns, and business metrics.
     Examples: "What are the top performing business units?", "Show me sales trends by quarter"
     """
-    args_schema = GenieQueryInput
+    args_schema: Type[BaseModel] = GenieQueryInput
     
     def __init__(self, host: str, token: str, space_id: str):
         super().__init__()
@@ -222,12 +222,12 @@ class ResponseEnhancementInput(BaseModel):
 class ResponseEnhancementTool(BaseTool):
     """Tool for enhancing responses using Databricks serving endpoint."""
     
-    name = "enhance_response"
-    description = """
+    name: str = "enhance_response"
+    description: str = """
     Enhance a response using an LLM serving endpoint to make it more business-friendly 
     and provide additional insights. Use this after getting a response from Genie.
     """
-    args_schema = ResponseEnhancementInput
+    args_schema: Type[BaseModel] = ResponseEnhancementInput
     
     def __init__(self, host: str, token: str, endpoint_name: str):
         super().__init__()
@@ -350,12 +350,12 @@ class SQLQueryInput(BaseModel):
 class SQLQueryTool(BaseTool):
     """Tool for executing SQL queries against Databricks warehouse."""
     
-    name = "sql_query"
-    description = """
+    name: str = "sql_query"
+    description: str = """
     Execute SQL queries against the Databricks warehouse to retrieve business data.
     Use this for direct database queries when you need specific data analysis.
     """
-    args_schema = SQLQueryInput
+    args_schema: Type[BaseModel] = SQLQueryInput
     
     def __init__(self, host: str, token: str, warehouse_id: str):
         super().__init__()
