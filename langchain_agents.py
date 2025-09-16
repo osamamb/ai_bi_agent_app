@@ -333,15 +333,42 @@ User Question: {input}
             Dictionary with response and metadata
         """
         try:
-            # Update genie tool with conversation context
-            modified_question = f"[Continue conversation {conversation_id}] {question}"
+            # Use direct tool execution for conversation continuation
+            # Pass the conversation_id to the genie tool for context
+            genie_result = self.genie_tool._run(question, conversation_id=conversation_id)
             
-            result = self.agent_executor.invoke({"input": modified_question})
+            # Get additional data from tools
+            dataframe = self.genie_tool.result_dataframe
+            sql_query = self.genie_tool.last_sql_query
+            
+            # Format response with conversation context
+            if "Failed" in genie_result or "Error" in genie_result or "Configuration" in genie_result:
+                response = f"I encountered an issue continuing the conversation: {genie_result}"
+            else:
+                response_parts = [f"Continuing our conversation about your previous question:"]
+                response_parts.append(genie_result)
+                
+                if sql_query:
+                    response_parts.append(f"Generated SQL Query:\n```sql\n{sql_query}\n```")
+                
+                if dataframe is not None and not dataframe.empty:
+                    response_parts.append(f"Data Results:\n{dataframe.to_string(max_rows=10, index=False)}")
+                
+                # Apply AI enhancement if available
+                base_response = "\n\n".join(response_parts)
+                if self.enhancement_tool:
+                    try:
+                        enhanced_response = self.enhancement_tool._run(base_response)
+                        response = enhanced_response
+                    except Exception:
+                        response = base_response
+                else:
+                    response = base_response
             
             return {
-                "response": result.get("output", "No response generated"),
-                "dataframe": self.genie_tool.result_dataframe,
-                "sql_query": self.genie_tool.last_sql_query,
+                "response": response,
+                "dataframe": dataframe,
+                "sql_query": sql_query,
                 "conversation_id": conversation_id,
                 "success": True
             }
