@@ -25,18 +25,24 @@ class MockLLM(LLM):
     
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         """Mock LLM call that provides reasonable responses."""
+        # Count how many tool calls have been made by looking at the scratchpad
+        tool_call_count = prompt.count("Action: genie_query")
+        
         # Check if this is an agent reasoning prompt
-        if "User Question:" in prompt and "genie_query" in prompt:
-            # Check if we've seen failures in the prompt (indicating retries)
-            if "Failed to start conversation with Genie" in prompt:
-                # After failures, provide a final answer instead of retrying
-                question_part = prompt.split("User Question:")[-1].split("\n")[0].strip()
-                return f"I apologize, but I'm unable to connect to the Genie service at the moment. However, I can provide general guidance about your question: '{question_part}'. Please check your configuration and try again later.\n\nFinal Answer: Unable to process the query due to Genie connection issues. Please verify your DATABRICKS_HOST, DATABRICKS_TOKEN, and GENIE_SPACE_ID configuration."
+        if "User Question:" in prompt:
+            # Extract the user question
+            question_part = prompt.split("User Question:")[-1].split("\n")[0].strip()
             
-            # Extract the user question for first attempt
-            if "User Question:" in prompt:
-                question_part = prompt.split("User Question:")[-1].split("\n")[0].strip()
-                return f"I need to use the genie_query tool to answer this business question: {question_part}\n\nAction: genie_query\nAction Input: {question_part}"
+            # If we've already tried the tool once and it failed, provide final answer
+            if tool_call_count >= 1 and ("Failed" in prompt or "Error" in prompt or "Configuration Error" in prompt):
+                return f"Final Answer: I encountered an issue accessing the business intelligence data. Based on your question '{question_part}', I recommend checking your Databricks configuration and trying again. If the issue persists, please verify your DATABRICKS_TOKEN and GENIE_SPACE_ID settings."
+            
+            # First attempt - use the genie tool
+            if tool_call_count == 0:
+                return f"I'll help you with your business intelligence question: {question_part}\n\nAction: genie_query\nAction Input: {question_part}"
+            
+            # If we get here, something unexpected happened - provide final answer
+            return f"Final Answer: I've processed your question about '{question_part}' but encountered some technical difficulties. Please check your configuration and try again."
         
         # Handle other types of prompts
         if "enhance" in prompt.lower():
@@ -44,7 +50,7 @@ class MockLLM(LLM):
         elif "Final Answer:" in prompt:
             return "Based on the business intelligence data, here are the key findings and recommendations."
         else:
-            return "I'll use the genie_query tool to get the business data you requested.\n\nAction: genie_query\nAction Input: business data query"
+            return "Final Answer: I'm ready to help with your business intelligence questions. Please ask me about sales, customers, campaigns, or other business metrics."
 
 
 class BusinessIntelligenceAgent:
@@ -160,8 +166,8 @@ User Question: {input}
             tools=tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=5,
-            max_execution_time=60  # 60 seconds timeout
+            max_iterations=3,  # Reduced to 3 for faster completion
+            max_execution_time=30  # Reduced to 30 seconds
         )
     
     def query(self, question: str) -> Dict[str, Any]:
