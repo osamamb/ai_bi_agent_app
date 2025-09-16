@@ -86,8 +86,12 @@ class GenieQueryTool(BaseTool):
             if not message_id:
                 return "Failed to send message to Genie"
             
-            # Wait for response
+            # Wait for response with timeout
             genie_response = self._wait_for_response(self._conversation_id, message_id)
+            
+            # Check if it's a timeout and provide helpful message
+            if genie_response and "Query timed out" in genie_response:
+                return f"Genie query timed out. The question '{query}' may be too complex or there may be connectivity issues. Try: 1) A simpler, more specific question, 2) Check your network connection, 3) Verify your Genie space is active."
             
             return genie_response or "No response received from Genie"
             
@@ -154,7 +158,7 @@ class GenieQueryTool(BaseTool):
         
         return None
     
-    def _wait_for_response(self, conversation_id: str, message_id: str, max_wait: int = 60) -> Optional[str]:
+    def _wait_for_response(self, conversation_id: str, message_id: str, max_wait: int = 30) -> Optional[str]:
         """Wait for Genie response."""
         start_time = time.time()
         
@@ -192,7 +196,7 @@ class GenieQueryTool(BaseTool):
             except Exception:
                 time.sleep(2)
         
-        return "Query timed out"
+        return f"Query timed out after {max_wait} seconds. This may indicate: 1) Complex query requiring more time, 2) Network connectivity issues, 3) Genie service overload. Try a simpler question or check your connection."
     
     def _get_query_results(self, statement_id: str):
         """Get query results and store as DataFrame."""
@@ -226,6 +230,18 @@ class GenieQueryTool(BaseTool):
     
     def _mock_response(self, query: str) -> str:
         """Generate mock response for local testing."""
+        query_lower = query.lower()
+        
+        if "describe" in query_lower and "dataset" in query_lower:
+            return """Dataset Description:
+- **Sales Data**: Contains transaction records with customer_id, product_id, amount, date
+- **Customer Data**: Customer demographics including age, location, segment  
+- **Product Data**: Product catalog with categories, prices, descriptions
+- **Campaign Data**: Marketing campaign performance metrics
+- **Time Range**: Data spans 2020-2024 with daily granularity
+- **Total Records**: Approximately 2.5M transactions across all tables
+- **Key Metrics**: Revenue, customer acquisition, product performance, regional trends"""
+        
         return f"Here's the analysis for your query about {query}. The data shows various patterns in tenure bands, campaigns, and sales metrics that can be visualized effectively."
     
     @property
