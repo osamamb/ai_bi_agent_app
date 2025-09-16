@@ -63,11 +63,19 @@ class GenieQueryTool(BaseTool):
             if not self.host or not self.token or not self.space_id:
                 return self._mock_response(query)
             
+            # Check for placeholder values
+            if self.token == "YOUR_DATABRICKS_TOKEN_HERE":
+                return "Configuration Error: DATABRICKS_TOKEN is still set to placeholder value. Please update app.yaml with your actual Databricks personal access token."
+            
+            if self.space_id == "YOUR_GENIE_SPACE_ID_HERE":
+                return "Configuration Error: GENIE_SPACE_ID is still set to placeholder value. Please update app.yaml with your actual Genie space ID."
+            
             # Start new conversation or continue existing one
             if not conversation_id:
                 response = self._start_conversation(query)
                 if not response:
-                    return "Failed to start conversation with Genie"
+                    error_detail = getattr(self, '_last_error', 'Unknown error')
+                    return f"Failed to start conversation with Genie. {error_detail}"
                 
                 self._conversation_id = response.get("conversation_id")
                 message_id = response.get("message_id")
@@ -96,16 +104,34 @@ class GenieQueryTool(BaseTool):
         ]
         
         payload = {"content": content}
+        last_error = None
         
         for url in endpoints_to_try:
             try:
                 response = requests.post(url, headers=self.headers, json=payload, timeout=30)
                 if response.status_code == 200:
                     return response.json()
+                elif response.status_code == 401:
+                    last_error = f"Authentication failed (401). Check your DATABRICKS_TOKEN permissions."
+                    break
+                elif response.status_code == 403:
+                    last_error = f"Access forbidden (403). Check if you have access to Genie space {self.space_id[:8]}..."
+                    break
                 elif response.status_code == 404:
+                    last_error = f"Genie space not found (404). Check if space ID {self.space_id[:8]}... exists."
                     continue
-            except Exception:
-                continue
+                else:
+                    last_error = f"HTTP {response.status_code}: {response.text[:100]}"
+            except requests.exceptions.Timeout:
+                last_error = f"Request timeout. Check network connection to {self.host}"
+            except requests.exceptions.ConnectionError:
+                last_error = f"Connection error. Check if {self.host} is accessible."
+            except Exception as e:
+                last_error = f"Request error: {str(e)}"
+        
+        # Store the last error for debugging
+        if hasattr(self, '_last_error'):
+            object.__setattr__(self, '_last_error', last_error)
         
         return None
     
