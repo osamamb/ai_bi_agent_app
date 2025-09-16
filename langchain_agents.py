@@ -284,7 +284,31 @@ User Question: {input}
             if "Failed" in genie_result or "Error" in genie_result or "Configuration" in genie_result:
                 response = f"I encountered an issue accessing the business intelligence data: {genie_result}"
             else:
-                response = f"Based on your question '{question}', here are the results from the business intelligence system:\n\n{genie_result}"
+                # Build comprehensive response with AI enhancement
+                response_parts = [f"Based on your question '{question}', here are the results from the business intelligence system:"]
+                
+                # Add Genie's analysis
+                response_parts.append(genie_result)
+                
+                # Add SQL query if available
+                if sql_query:
+                    response_parts.append(f"Generated SQL Query:\n```sql\n{sql_query}\n```")
+                
+                # Add data results if available
+                if dataframe is not None and not dataframe.empty:
+                    response_parts.append(f"Data Results:\n{dataframe.to_string(max_rows=10, index=False)}")
+                
+                # Apply AI enhancement if available
+                base_response = "\n\n".join(response_parts)
+                if self.enhancement_tool:
+                    try:
+                        enhanced_response = self.enhancement_tool._run(base_response)
+                        response = enhanced_response
+                    except Exception:
+                        # If enhancement fails, use base response
+                        response = base_response
+                else:
+                    response = base_response
             
             return {
                 "response": response,

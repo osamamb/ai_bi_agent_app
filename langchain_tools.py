@@ -229,20 +229,35 @@ class GenieQueryTool(BaseTool):
                     if response.status_code == 200:
                         result_data = response.json()
                         
-                        # Extract results
-                        if "result" in result_data and "data_array" in result_data["result"]:
-                            data_array = result_data["result"]["data_array"]
-                            columns = [col["name"] for col in result_data["result"]["schema"]["columns"]]
+                        # Check if query succeeded
+                        if result_data.get("status", {}).get("state") == "SUCCEEDED":
+                            # For successful queries, we might need to wait for data or it might be embedded
+                            if "result" in result_data and "data_array" in result_data["result"]:
+                                # Data is directly available
+                                data_array = result_data["result"]["data_array"]
+                                columns = [col["name"] for col in result_data["result"]["schema"]["columns"]]
+                            elif "manifest" in result_data:
+                                # Query succeeded but data might not be ready yet
+                                columns = [col["name"] for col in result_data["manifest"]["schema"]["columns"]]
+                                
+                                # For now, return success message with schema info
+                                return f"Query executed successfully. Schema: {', '.join(columns[:5])}{'...' if len(columns) > 5 else ''} ({len(columns)} total columns)"
+                            else:
+                                return "Query executed successfully but results format not recognized"
                             
-                            # Create DataFrame
-                            df = pd.DataFrame(data_array, columns=columns)
-                            object.__setattr__(self, '_result_dataframe', df)
-                            
-                            # Format results for display
-                            formatted_results = df.to_string(max_rows=10, index=False)
-                            object.__setattr__(self, '_last_query_results', formatted_results)
-                            
-                            return formatted_results
+                            # Create DataFrame if we have data
+                            if 'data_array' in locals() and 'columns' in locals():
+                                df = pd.DataFrame(data_array, columns=columns)
+                                object.__setattr__(self, '_result_dataframe', df)
+                                
+                                # Format results for display
+                                formatted_results = df.to_string(max_rows=10, index=False)
+                                object.__setattr__(self, '_last_query_results', formatted_results)
+                                
+                                return formatted_results
+                        else:
+                            query_state = result_data.get("status", {}).get("state", "unknown")
+                            return f"Query execution failed with state: {query_state}"
                             
                 except Exception:
                     continue
