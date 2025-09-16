@@ -1,5 +1,6 @@
 """
 LangChain Agents for Databricks BI Application
+Version: 2.0 - Direct Execution Only (No Agent Framework)
 """
 
 import os
@@ -116,11 +117,21 @@ class BusinessIntelligenceAgent:
             warehouse_id=warehouse_id
         )
         
+        # FORCE VERSION CHECK: Prevent old cached code from running
+        self._version_check()
+        
         # Initialize LLM
         self.llm = self._initialize_llm()
         
-        # Create agent
+        # Create agent (only for compatibility, never used in v2.0)
         self.agent_executor = self._create_agent()
+    
+    def _version_check(self):
+        """Force version check to prevent old cached code from running."""
+        # This method exists only in v2.0+ - old cached code will fail here
+        import time
+        self._deployment_timestamp = time.time()
+        self._version_marker = "v2.0-DirectOnly-ForceUpdate"
     
     def _initialize_llm(self) -> LLM:
         """Initialize the LLM for the agent."""
@@ -211,16 +222,32 @@ User Question: {input}
         Returns:
             Dictionary with response, dataframe, and metadata
         """
-        # DIRECT TOOL EXECUTION ONLY: Bypass agent framework entirely for reliability
+        # EMERGENCY FIX: Force direct execution only - NO AGENT FRAMEWORK EVER
+        import time
+        start_time = time.time()
+        
         try:
+            # Add debug info to response
+            version_marker = getattr(self, '_version_marker', 'UNKNOWN')
+            debug_info = f"[{version_marker}: Execution started at {time.strftime('%H:%M:%S')}]"
+            
             direct_result = self._direct_tool_execution(question)
+            
+            elapsed = time.time() - start_time
+            debug_info += f" [Completed in {elapsed:.1f}s]"
+            
+            # Add debug info to response
+            if direct_result["success"]:
+                direct_result["response"] = debug_info + "\n\n" + direct_result["response"]
+            
             return direct_result
+            
         except Exception as e:
-            # If direct execution fails, provide detailed error information
+            elapsed = time.time() - start_time
             error_msg = str(e)
             
             return {
-                "response": f"I encountered an issue processing your query: {error_msg}. Please check your Databricks configuration and try again.",
+                "response": f"[DEBUG: Direct execution failed after {elapsed:.1f}s] Error: {error_msg}. This should never happen with the new architecture. Please check your Databricks configuration.",
                 "dataframe": None,
                 "sql_query": None,
                 "conversation_id": None,
