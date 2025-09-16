@@ -25,12 +25,20 @@ class MockLLM(LLM):
     
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         """Mock LLM call that provides reasonable responses."""
-        if "enhance" in prompt.lower() or "improve" in prompt.lower():
+        # Check if this is an agent reasoning prompt
+        if "User Question:" in prompt and "genie_query" in prompt:
+            # Extract the user question
+            if "User Question:" in prompt:
+                question_part = prompt.split("User Question:")[-1].split("\n")[0].strip()
+                return f"I need to use the genie_query tool to answer this business question: {question_part}\n\nAction: genie_query\nAction Input: {question_part}"
+        
+        # Handle other types of prompts
+        if "enhance" in prompt.lower():
             return "Enhanced response: The data analysis shows significant business insights with actionable recommendations for strategic decision-making."
-        elif "analyze" in prompt.lower() or "query" in prompt.lower():
-            return "Based on the business intelligence data, here are the key findings and recommendations for your query."
+        elif "Final Answer:" in prompt:
+            return "Based on the business intelligence data, here are the key findings and recommendations."
         else:
-            return "I understand your request. Let me help you analyze the business data to provide meaningful insights."
+            return "I'll use the genie_query tool to get the business data you requested.\n\nAction: genie_query\nAction Input: business data query"
 
 
 class BusinessIntelligenceAgent:
@@ -116,25 +124,21 @@ class BusinessIntelligenceAgent:
         
         # Create agent prompt
         prompt = PromptTemplate.from_template("""
-You are a Business Intelligence Agent specialized in analyzing business data using Databricks Genie and SQL queries.
+You are a Business Intelligence Agent. Answer business questions using the available tools.
 
-Your capabilities:
-1. Query business data using natural language through Genie
-2. Execute SQL queries for detailed analysis
-3. Enhance responses to be more business-friendly and actionable
+IMPORTANT: Be direct and efficient. Use only ONE tool per question unless absolutely necessary.
 
-When a user asks a question:
-1. First, try to use the genie_query tool with their natural language question
-2. If you need more specific data, use the sql_query tool
-3. If enhancement is available, use enhance_response to improve the final answer
-4. Always provide clear, business-focused insights
+Process:
+1. For business questions, use genie_query tool with the user's exact question
+2. Return the result immediately - do not use additional tools unless the first tool fails
+3. Only use enhance_response if specifically requested or if the response needs improvement
 
 Available tools: {tool_names}
-Tool descriptions: {tools}
+Tool descriptions:
+{tools}
 
 User Question: {input}
 
-Thought: I need to analyze this business question and determine the best approach.
 {agent_scratchpad}
 """)
         
@@ -150,7 +154,9 @@ Thought: I need to analyze this business question and determine the best approac
             tools=tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=3
+            max_iterations=5,
+            max_execution_time=60,  # 60 seconds timeout
+            early_stopping_method="generate"
         )
     
     def query(self, question: str) -> Dict[str, Any]:
@@ -164,7 +170,7 @@ Thought: I need to analyze this business question and determine the best approac
             Dictionary with response, dataframe, and metadata
         """
         try:
-            # Execute agent
+            # Execute agent with timeout handling
             result = self.agent_executor.invoke({"input": question})
             
             # Get additional data from tools
@@ -181,8 +187,18 @@ Thought: I need to analyze this business question and determine the best approac
             }
             
         except Exception as e:
+            error_msg = str(e)
+            
+            # Provide more specific error messages
+            if "iteration limit" in error_msg.lower():
+                error_msg = "The agent took too many steps to process your query. Please try rephrasing your question more specifically."
+            elif "time limit" in error_msg.lower():
+                error_msg = "The query timed out. Please try a simpler question or check your connection."
+            elif "parsing" in error_msg.lower():
+                error_msg = "There was an issue understanding the query format. Please try rephrasing your question."
+            
             return {
-                "response": f"Error processing query: {str(e)}",
+                "response": f"I encountered an issue processing your query: {error_msg}",
                 "dataframe": None,
                 "sql_query": None,
                 "conversation_id": None,
