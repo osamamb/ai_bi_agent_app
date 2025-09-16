@@ -123,8 +123,8 @@ class BusinessIntelligenceAgent:
         # Initialize LLM
         self.llm = self._initialize_llm()
         
-        # Create agent (only for compatibility, never used in v2.0)
-        self.agent_executor = self._create_agent()
+        # DISABLE AGENT COMPLETELY: Set to None to prevent any usage
+        self.agent_executor = None
     
     def _version_check(self):
         """Force version check to prevent old cached code from running."""
@@ -259,9 +259,26 @@ User Question: {input}
         Direct tool execution bypass when agent framework fails.
         This completely bypasses the agent and calls tools directly.
         """
+        import signal
+        import time
+        
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Direct execution timeout after 90 seconds")
+        
         try:
+            # Set 90-second timeout for complex queries
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(90)
+            
+            start_time = time.time()
+            
             # Call genie tool directly with extended timeout for complex queries
             genie_result = self.genie_tool._run(question)
+            
+            # Clear the alarm
+            signal.alarm(0)
+            
+            execution_time = time.time() - start_time
             
             # Get additional data from tools
             dataframe = self.genie_tool.result_dataframe
@@ -291,12 +308,12 @@ User Question: {input}
                 if self.enhancement_tool:
                     try:
                         enhanced_response = self.enhancement_tool._run(base_response)
-                        response = enhanced_response
+                        response = f"[Direct execution: {execution_time:.1f}s] {enhanced_response}"
                     except Exception:
                         # If enhancement fails, use base response
-                        response = base_response
+                        response = f"[Direct execution: {execution_time:.1f}s] {base_response}"
                 else:
-                    response = base_response
+                    response = f"[Direct execution: {execution_time:.1f}s] {base_response}"
             
             return {
                 "response": response,
@@ -306,9 +323,19 @@ User Question: {input}
                 "success": True
             }
             
-        except Exception as e:
+        except TimeoutError as e:
+            signal.alarm(0)  # Clear alarm
             return {
-                "response": f"I encountered an issue with direct tool execution: {str(e)}. Please check your Databricks configuration and try again.",
+                "response": f"[TIMEOUT] Query execution exceeded 90 seconds. This query may be too complex. Try: 1) A simpler, more specific question, 2) Breaking it into smaller parts, 3) Checking your data sources are accessible.",
+                "dataframe": None,
+                "sql_query": None,
+                "conversation_id": None,
+                "success": False
+            }
+        except Exception as e:
+            signal.alarm(0)  # Clear alarm
+            return {
+                "response": f"[ERROR] Direct tool execution failed: {str(e)}. Please check your Databricks configuration and try again.",
                 "dataframe": None,
                 "sql_query": None,
                 "conversation_id": None,
